@@ -1,0 +1,987 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Timer - Pomodoro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff4757 0%, #c44569 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            padding: 40px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            margin-bottom: 40px;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+
+        .timer-circle {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 30px;
+            position: relative;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #4facfe 0deg, #00f2fe var(--progress, 0deg), rgba(255, 255, 255, 0.2) var(--progress, 0deg));
+            transition: all 0.3s ease;
+        }
+
+        .progress-inner {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: calc(100% - 20px);
+            height: calc(100% - 20px);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .time-display {
+            font-size: 3em;
+            font-weight: 300;
+            z-index: 10;
+            position: relative;
+            letter-spacing: 2px;
+        }
+
+        .session-info {
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .session-type {
+            font-size: 1.2em;
+            font-weight: 500;
+            color: #4facfe;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50px;
+            padding: 15px 30px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.primary {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            font-weight: 500;
+        }
+
+        button.primary:hover {
+            background: linear-gradient(45deg, #00f2fe, #4facfe);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: 500;
+            color: #4facfe;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .motivational-text {
+            font-size: 1em;
+            opacity: 0.8;
+            margin-top: 15px;
+            font-style: italic;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .timer-circle.active .progress-ring {
+            animation: pulse 2s infinite;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .menu-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .menu-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .menu-dropdown {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transform: translateY(-20px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .menu-dropdown.show {
+            transform: translateY(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 10px;
+            margin: 5px 0;
+            color: white;
+            font-size: 1em;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: 300;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .settings-group {
+            margin-bottom: 25px;
+        }
+
+        .settings-group h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #ff6b7d;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+
+        .setting-label {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .setting-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 1em;
+            width: 80px;
+            text-align: center;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: #ff6b7d;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .reset-btn {
+            background: linear-gradient(45deg, #ff6b7d, #ff4757);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: linear-gradient(45deg, #ff4757, #ff6b7d);
+            transform: translateY(-2px);
+        }
+
+        .about-content {
+            line-height: 1.6;
+        }
+
+        .about-content h3 {
+            color: #ff6b7d;
+            margin-bottom: 15px;
+        }
+
+        .about-content p {
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .founders {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .founder {
+            flex: 1;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .founder-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b7d, #ff4757);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .founder-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .founder-role {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        .profile-modal .modal-content {
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b7d, #ff4757);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .profile-info {
+            margin-bottom: 20px;
+        }
+
+        .profile-info h3 {
+            margin-bottom: 10px;
+            color: #ff6b7d;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .profile-stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .profile-stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ff6b7d;
+        }
+
+        .profile-stat-label {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .timer-circle {
+                width: 200px;
+                height: 200px;
+            }
+            
+            .time-display {
+                font-size: 2.5em;
+            }
+            
+            .founders {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .menu-dropdown {
+                right: 10px;
+                min-width: 180px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-button" id="menuButton">
+        ⚙️
+    </div>
+    
+    <div class="menu-dropdown" id="menuDropdown">
+        <div class="menu-item" id="profileBtn">
+            <span>👤 Perfil do Usuário</span>
+        </div>
+        <div class="menu-item" id="settingsBtn">
+            <span>⚙️ Configurações</span>
+        </div>
+        <div class="menu-item" id="aboutBtn">
+            <span>ℹ️ Sobre Nós</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>FOCUS</h1>
+        <div class="subtitle">Timer Pomodoro</div>
+        
+        <div class="timer-circle" id="timerCircle">
+            <div class="progress-ring" id="progressRing"></div>
+            <div class="progress-inner"></div>
+            <div class="time-display" id="timeDisplay">25:00</div>
+        </div>
+        
+        <div class="session-info">
+            <div class="session-type" id="sessionType">Sessão de Foco</div>
+            <div id="sessionStatus">Pronto para começar</div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" class="primary">Iniciar</button>
+            <button id="pauseBtn" style="display: none;">Pausar</button>
+            <button id="resetBtn">Resetar</button>
+            <button id="skipBtn">Pular Etapa</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="completedSessions">0</div>
+                <div class="stat-label">Sessões</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalTime">0</div>
+                <div class="stat-label">Minutos</div>
+            </div>
+        </div>
+        
+        <div class="motivational-text" id="motivationalText">
+            "O sucesso é a soma de pequenos esforços repetidos dia após dia."
+        </div>
+    </div>
+
+    <div class="notification" id="notification">
+        <div id="notificationText"></div>
+    </div>
+
+    <!-- Modal de Perfil -->
+    <div class="modal profile-modal" id="profileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Perfil do Usuário</h2>
+                <button class="close-btn" onclick="closeModal('profileModal')">×</button>
+            </div>
+            <div class="profile-avatar">U</div>
+            <div class="profile-info">
+                <h3>Usuário Focado</h3>
+                <p>Membro desde hoje</p>
+                <p>Nível: Iniciante</p>
+            </div>
+            <div class="profile-stats">
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="profileSessions">0</div>
+                    <div class="profile-stat-label">Sessões</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="profileMinutes">0</div>
+                    <div class="profile-stat-label">Minutos</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="profileStreak">1</div>
+                    <div class="profile-stat-label">Sequência</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="profile-stat-number" id="profileLevel">1</div>
+                    <div class="profile-stat-label">Nível</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configurações -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configurações</h2>
+                <button class="close-btn" onclick="closeModal('settingsModal')">×</button>
+            </div>
+            <div class="settings-group">
+                <h3>Tempos do Pomodoro</h3>
+                <div class="setting-item">
+                    <span class="setting-label">Sessão de Foco (min)</span>
+                    <input type="number" class="setting-input" id="focusTime" value="25" min="1" max="60">
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Pausa Curta (min)</span>
+                    <input type="number" class="setting-input" id="shortBreakTime" value="5" min="1" max="30">
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Pausa Longa (min)</span>
+                    <input type="number" class="setting-input" id="longBreakTime" value="15" min="1" max="60">
+                </div>
+                <button class="reset-btn" onclick="resetToDefault()">Voltar para o Padrão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sobre Nós -->
+    <div class="modal" id="aboutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sobre Nós</h2>
+                <button class="close-btn" onclick="closeModal('aboutModal')">×</button>
+            </div>
+            <div class="about-content">
+                <h3>Nossa História</h3>
+                <p>
+                    Tudo começou em uma tarde de estudos na universidade, quando dois jovens empreendedores 
+                    perceberam que a produtividade era um desafio constante para estudantes e profissionais.
+                </p>
+                <p>
+                    Lucas e Helcio, ambos apaixonados por tecnologia e desenvolvimento pessoal, decidiram 
+                    criar uma solução elegante e eficaz para o problema da procrastinação e falta de foco.
+                </p>
+                <p>
+                    Inspirados pela técnica Pomodoro, eles desenvolveram este timer com uma abordagem 
+                    moderna e motivacional, focando na experiência do usuário e no design minimalista.
+                </p>
+                
+                <div class="founders">
+                    <div class="founder">
+                        <div class="founder-avatar">L</div>
+                        <div class="founder-name">Lucas</div>
+                        <div class="founder-role">Co-fundador & Design</div>
+                    </div>
+                    <div class="founder">
+                        <div class="founder-avatar">H</div>
+                        <div class="founder-name">Helcio</div>
+                        <div class="founder-role">Co-fundador & Desenvolvimento</div>
+                    </div>
+                </div>
+                
+                <p style="margin-top: 20px; text-align: center; opacity: 0.7;">
+                    "Acreditamos que pequenos momentos de foco podem gerar grandes resultados."
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PomodoroTimer {
+            constructor() {
+                this.sessions = {
+                    focus: 25 * 60,    // 25 minutos
+                    shortBreak: 5 * 60, // 5 minutos
+                    longBreak: 15 * 60  // 15 minutos
+                };
+                
+                this.currentSession = 'focus';
+                this.timeLeft = this.sessions[this.currentSession];
+                this.totalTime = this.sessions[this.currentSession];
+                this.isRunning = false;
+                this.completedSessions = 0;
+                this.totalMinutes = 0;
+                this.sessionCount = 0;
+                this.timer = null;
+                
+                this.motivationalTexts = [
+                    "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
+                    "Concentre-se no processo, não no resultado.",
+                    "Cada sessão é um passo em direção ao seu objetivo.",
+                    "A disciplina é a ponte entre objetivos e conquistas.",
+                    "Você é mais forte do que suas desculpas."
+                ];
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.updateDisplay();
+            }
+            
+            initializeElements() {
+                this.timeDisplay = document.getElementById('timeDisplay');
+                this.sessionType = document.getElementById('sessionType');
+                this.sessionStatus = document.getElementById('sessionStatus');
+                this.startBtn = document.getElementById('startBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.skipBtn = document.getElementById('skipBtn');
+                this.completedSessionsDisplay = document.getElementById('completedSessions');
+                this.totalTimeDisplay = document.getElementById('totalTime');
+                this.progressRing = document.getElementById('progressRing');
+                this.timerCircle = document.getElementById('timerCircle');
+                this.notification = document.getElementById('notification');
+                this.notificationText = document.getElementById('notificationText');
+                this.motivationalText = document.getElementById('motivationalText');
+                this.menuButton = document.getElementById('menuButton');
+                this.menuDropdown = document.getElementById('menuDropdown');
+                this.profileBtn = document.getElementById('profileBtn');
+                this.settingsBtn = document.getElementById('settingsBtn');
+                this.aboutBtn = document.getElementById('aboutBtn');
+                this.focusTimeInput = document.getElementById('focusTime');
+                this.shortBreakTimeInput = document.getElementById('shortBreakTime');
+                this.longBreakTimeInput = document.getElementById('longBreakTime');
+                this.profileSessions = document.getElementById('profileSessions');
+                this.profileMinutes = document.getElementById('profileMinutes');
+                this.profileStreak = document.getElementById('profileStreak');
+                this.profileLevel = document.getElementById('profileLevel');
+            }
+            
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                this.skipBtn.addEventListener('click', () => this.skipToNext());
+                
+                // Menu eventos
+                this.menuButton.addEventListener('click', () => this.toggleMenu());
+                this.profileBtn.addEventListener('click', () => this.openModal('profileModal'));
+                this.settingsBtn.addEventListener('click', () => this.openModal('settingsModal'));
+                this.aboutBtn.addEventListener('click', () => this.openModal('aboutModal'));
+                
+                // Configurações eventos
+                this.focusTimeInput.addEventListener('change', () => this.updateSettings());
+                this.shortBreakTimeInput.addEventListener('change', () => this.updateSettings());
+                this.longBreakTimeInput.addEventListener('change', () => this.updateSettings());
+                
+                // Fechar menu ao clicar fora
+                document.addEventListener('click', (e) => {
+                    if (!this.menuButton.contains(e.target) && !this.menuDropdown.contains(e.target)) {
+                        this.closeMenu();
+                    }
+                });
+            }
+            
+            start() {
+                this.isRunning = true;
+                this.startBtn.style.display = 'none';
+                this.pauseBtn.style.display = 'inline-block';
+                this.timerCircle.classList.add('active');
+                this.sessionStatus.textContent = 'Em andamento...';
+                
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateDisplay();
+                    
+                    if (this.timeLeft <= 0) {
+                        this.complete();
+                    }
+                }, 1000);
+            }
+            
+            pause() {
+                this.isRunning = false;
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                this.timerCircle.classList.remove('active');
+                this.sessionStatus.textContent = 'Pausado';
+                
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+            }
+            
+            reset() {
+                this.pause();
+                this.timeLeft = this.sessions[this.currentSession];
+                this.totalTime = this.sessions[this.currentSession];
+                this.updateDisplay();
+                this.sessionStatus.textContent = 'Pronto para começar';
+            }
+            
+            complete() {
+                this.pause();
+                this.completedSessions++;
+                this.totalMinutes += Math.floor(this.sessions[this.currentSession] / 60);
+                this.sessionCount++;
+                
+                // Determinar próxima sessão
+                if (this.currentSession === 'focus') {
+                    if (this.sessionCount % 4 === 0) {
+                        this.currentSession = 'longBreak';
+                    } else {
+                        this.currentSession = 'shortBreak';
+                    }
+                } else {
+                    this.currentSession = 'focus';
+                }
+                
+                this.timeLeft = this.sessions[this.currentSession];
+                this.totalTime = this.sessions[this.currentSession];
+                
+                this.showNotification();
+                this.updateDisplay();
+                this.updateMotivationalText();
+                this.sessionStatus.textContent = 'Sessão concluída!';
+            }
+            
+            skipToNext() {
+                if (this.isRunning) {
+                    this.pause();
+                }
+                
+                // Contar como sessão completada apenas se estava em foco
+                if (this.currentSession === 'focus') {
+                    this.completedSessions++;
+                    this.totalMinutes += Math.floor(this.sessions[this.currentSession] / 60);
+                    this.sessionCount++;
+                }
+                
+                // Determinar próxima sessão
+                if (this.currentSession === 'focus') {
+                    if (this.sessionCount % 4 === 0) {
+                        this.currentSession = 'longBreak';
+                    } else {
+                        this.currentSession = 'shortBreak';
+                    }
+                } else {
+                    this.currentSession = 'focus';
+                }
+                
+                this.timeLeft = this.sessions[this.currentSession];
+                this.totalTime = this.sessions[this.currentSession];
+                
+                this.updateDisplay();
+                this.updateMotivationalText();
+                this.sessionStatus.textContent = 'Etapa pulada - Pronto para começar';
+            }
+            
+            toggleMenu() {
+                this.menuDropdown.classList.toggle('show');
+            }
+            
+            closeMenu() {
+                this.menuDropdown.classList.remove('show');
+            }
+            
+            openModal(modalId) {
+                this.closeMenu();
+                document.getElementById(modalId).classList.add('show');
+                
+                // Atualizar dados do perfil
+                if (modalId === 'profileModal') {
+                    this.updateProfileData();
+                }
+            }
+            
+            updateSettings() {
+                const focusTime = parseInt(this.focusTimeInput.value) || 25;
+                const shortBreakTime = parseInt(this.shortBreakTimeInput.value) || 5;
+                const longBreakTime = parseInt(this.longBreakTimeInput.value) || 15;
+                
+                this.sessions.focus = focusTime * 60;
+                this.sessions.shortBreak = shortBreakTime * 60;
+                this.sessions.longBreak = longBreakTime * 60;
+                
+                // Resetar timer atual se não estiver rodando
+                if (!this.isRunning) {
+                    this.timeLeft = this.sessions[this.currentSession];
+                    this.totalTime = this.sessions[this.currentSession];
+                    this.updateDisplay();
+                }
+            }
+            
+            updateProfileData() {
+                this.profileSessions.textContent = this.completedSessions;
+                this.profileMinutes.textContent = this.totalMinutes;
+                this.profileStreak.textContent = Math.max(1, Math.floor(this.completedSessions / 4) + 1);
+                this.profileLevel.textContent = Math.max(1, Math.floor(this.completedSessions / 10) + 1);
+            }
+            
+            updateDisplay() {
+                // Atualizar tempo
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                this.timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Atualizar tipo de sessão
+                const sessionTypes = {
+                    focus: 'Sessão de Foco',
+                    shortBreak: 'Pausa Curta',
+                    longBreak: 'Pausa Longa'
+                };
+                this.sessionType.textContent = sessionTypes[this.currentSession];
+                
+                // Atualizar progresso
+                const progress = ((this.totalTime - this.timeLeft) / this.totalTime) * 360;
+                this.progressRing.style.setProperty('--progress', `${progress}deg`);
+                
+                // Atualizar estatísticas
+                this.completedSessionsDisplay.textContent = this.completedSessions;
+                this.totalTimeDisplay.textContent = this.totalMinutes;
+            }
+            
+            showNotification() {
+                const messages = {
+                    focus: 'Hora da pausa! Descanse um pouco.',
+                    shortBreak: 'Pausa terminada! Vamos focar novamente.',
+                    longBreak: 'Pausa longa terminada! Pronto para mais uma sessão.'
+                };
+                
+                this.notificationText.textContent = messages[this.currentSession];
+                this.notification.classList.add('show');
+                
+                setTimeout(() => {
+                    this.notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            updateMotivationalText() {
+                const randomIndex = Math.floor(Math.random() * this.motivationalTexts.length);
+                this.motivationalText.textContent = this.motivationalTexts[randomIndex];
+            }
+        }
+        
+        // Inicializar o timer quando a página carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            new PomodoroTimer();
+        });
+        
+        // Funções globais para os modais
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+        
+        function resetToDefault() {
+            document.getElementById('focusTime').value = 25;
+            document.getElementById('shortBreakTime').value = 5;
+            document.getElementById('longBreakTime').value = 15;
+            
+            // Disparar evento de mudança para atualizar as configurações
+            document.getElementById('focusTime').dispatchEvent(new Event('change'));
+        }
+    </script>
+</body>
+</html>
